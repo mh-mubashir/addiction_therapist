@@ -25,7 +25,7 @@ Guidelines:
 Remember: Your primary goal is to be a supportive companion in their recovery journey, not a trigger detector. Only address potential triggers when they are clearly and specifically mentioned by the person.`;
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-vercel-app.vercel.app' 
+  ? 'https://addiction-therapist.app' 
   : 'http://localhost:3001';
 
 // Session management

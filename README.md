@@ -188,7 +188,7 @@ The system now supports multiple users with automatic session management:
 1. **Update API URL** in `src/services/claudeAPI.js`:
    ```javascript
    const API_BASE_URL = process.env.NODE_ENV === 'production' 
-     ? 'https://your-vercel-app.vercel.app'  // Replace with your Vercel URL
+     ? 'https://addiction-therapist.vercel.app'  // Replace with your Vercel URL
      : 'http://localhost:3001';
    ```
 
