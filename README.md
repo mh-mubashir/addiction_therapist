@@ -171,3 +171,79 @@ For technical issues or questions about the implementation, please open an issue
 ---
 
 **Remember**: Recovery is a journey, and you don't have to walk it alone. This tool is here to support you, but always reach out to professionals when you need additional help.
+
+## Session Management
+
+The system now supports multiple users with automatic session management:
+
+- **30-minute session timeout** for inactivity
+- **Automatic session cleanup** every 5 minutes
+- **Session persistence** across page refreshes
+- **Multi-device support** with unique session IDs
+
+## Deployment to Vercel
+
+### 1. Prepare for Deployment
+
+1. **Update API URL** in `src/services/claudeAPI.js`:
+   ```javascript
+   const API_BASE_URL = process.env.NODE_ENV === 'production' 
+     ? 'https://your-vercel-app.vercel.app'  // Replace with your Vercel URL
+     : 'http://localhost:3001';
+   ```
+
+2. **Set environment variables** in Vercel:
+   - Go to your Vercel project dashboard
+   - Navigate to Settings → Environment Variables
+   - Add: `CLAUDE_API_KEY` = your Claude API key
+
+### 2. Deploy
+
+1. **Install Vercel CLI** (optional):
+   ```bash
+   npm i -g vercel
+   ```
+
+2. **Deploy via GitHub** (recommended):
+   - Push your code to GitHub
+   - Connect your repository to Vercel
+   - Vercel will automatically deploy on pushes
+
+3. **Deploy via CLI**:
+   ```bash
+   vercel
+   ```
+
+### 3. Configuration
+
+The `vercel.json` file is already configured to:
+- Route API calls to the Node.js server
+- Serve the React app for all other routes
+- Handle both frontend and backend in one deployment
+
+## API Endpoints
+
+### Session Management
+- `POST /api/session/create` - Create new session
+- `GET /api/session/:sessionId/status` - Get session status
+- `DELETE /api/session/:sessionId` - Delete session
+
+### Chat
+- `POST /api/chat` - Send message to Claude AI
+
+### Health Check
+- `GET /health` - Server health and status
+
+## Session Timeout Behavior
+
+- **30-minute timeout** for inactive sessions
+- **Automatic cleanup** of expired sessions
+- **Session status indicators** in the UI
+- **Graceful handling** of expired sessions
+
+## Security Considerations
+
+- API keys are stored server-side only
+- Sessions are stored in memory (not persistent)
+- No sensitive data is logged
+- CORS is configured for security
