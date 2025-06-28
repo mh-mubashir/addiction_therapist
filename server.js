@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 const { Anthropic } = require('@anthropic-ai/sdk');
 require('dotenv').config();
 
@@ -10,6 +12,15 @@ const port = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Serve static files from the React app build (if it exists)
+const distPath = path.join(__dirname, 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  console.log('📁 Serving static files from dist folder');
+} else {
+  console.log('⚠️ Dist folder not found - running in development mode');
+}
+
 // Initialize Anthropic client
 const anthropic = new Anthropic({
   apiKey: process.env.CLAUDE_API_KEY,
@@ -17,7 +28,7 @@ const anthropic = new Anthropic({
 
 // Session management
 const sessions = new Map();
-const SESSION_TIMEOUT = 2 * 60 * 1000; // 30 minutes in milliseconds
+const SESSION_TIMEOUT = 2 * 60 * 1000; // 2 minutes in milliseconds
 
 // Clean up expired sessions
 function cleanupExpiredSessions() {
@@ -63,7 +74,8 @@ app.get('/health', (req, res) => {
     status: 'ok', 
     apiKeyLoaded,
     activeSessions: sessions.size,
-    uptime: process.uptime()
+    uptime: process.uptime(),
+    distExists: fs.existsSync(distPath)
   });
 });
 
@@ -303,6 +315,18 @@ function evaluateResponse(userResponse, question) {
     noMatches
   };
 }
+
+// Serve React app for all non-API routes (if dist exists)
+app.get('*', (req, res) => {
+  if (fs.existsSync(distPath)) {
+    res.sendFile(path.join(distPath, 'index.html'));
+  } else {
+    res.status(404).json({ 
+      error: 'Frontend not built. Please run "npm run build" first.',
+      message: 'This is a development server. The frontend needs to be built for production.'
+    });
+  }
+});
 
 app.listen(port, () => {
   console.log(`🚀 Therapist API server running on port ${port}`);
