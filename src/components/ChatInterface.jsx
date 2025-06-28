@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import MessageBubble from './MessageBubble.jsx';
-import { sendMessage, formatMessages } from '../services/claudeAPI.js';
+import { 
+  sendMessage, 
+  formatMessages, 
+  createSession, 
+  getSessionStatus, 
+  clearSession 
+} from '../services/claudeAPI.js';
 import { 
   detectTriggersInMessage, 
   getTriggerSummary, 
@@ -17,7 +23,23 @@ const ChatInterface = () => {
   const [triggerAssessments, setTriggerAssessments] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [questionMode, setQuestionMode] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const messagesEndRef = useRef(null);
+
+  // Initialize session on component mount
+  useEffect(() => {
+    const initializeSession = async () => {
+      try {
+        await createSession();
+        console.log('✅ Session initialized');
+      } catch (error) {
+        console.error('❌ Failed to initialize session:', error);
+      }
+    };
+
+    initializeSession();
+  }, []);
 
   // Load conversation from localStorage on component mount
   useEffect(() => {
@@ -41,6 +63,28 @@ const ChatInterface = () => {
     
     // Reset question tracker for new sessions
     resetQuestionTracker();
+  }, []);
+
+  // Check session status periodically
+  useEffect(() => {
+    const checkSessionStatus = async () => {
+      try {
+        const status = await getSessionStatus();
+        if (status) {
+          setSessionStatus(status);
+          if (status.isExpired) {
+            setSessionExpired(true);
+            console.log('⚠️ Session expired');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking session status:', error);
+      }
+    };
+
+    // Check every 5 minutes
+    const interval = setInterval(checkSessionStatus, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Save conversation to localStorage whenever messages change
@@ -163,7 +207,7 @@ const ChatInterface = () => {
     }
   };
 
-  const clearConversation = () => {
+  const clearConversation = async () => {
     setMessages([{
       id: Date.now(),
       sender: 'bot',
@@ -172,7 +216,17 @@ const ChatInterface = () => {
     setTriggerAssessments([]);
     setQuestionMode(false);
     setCurrentQuestion(null);
+    setSessionExpired(false);
     resetQuestionTracker();
+    
+    // Clear session and create new one
+    clearSession();
+    try {
+      await createSession();
+    } catch (error) {
+      console.error('Error creating new session:', error);
+    }
+    
     localStorage.removeItem('therapist-chat');
     localStorage.removeItem('trigger-assessments');
   };
@@ -204,6 +258,21 @@ const ChatInterface = () => {
 
   return (
     <div className="chat-container">
+      {/* Session status indicator */}
+      {sessionStatus && (
+        <div className="session-status">
+          {sessionExpired ? (
+            <div className="session-expired">
+              ⚠️ Your session has expired. Please refresh the page or start a new conversation.
+            </div>
+          ) : (
+            <div className="session-active">
+              ⏰ Session active - {Math.round(sessionStatus.timeRemaining / 1000 / 60)} minutes remaining
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="messages">
         {messages.map((message) => (
           <MessageBubble
@@ -241,12 +310,12 @@ const ChatInterface = () => {
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder={questionMode ? "Answer the question above..." : "Type your message here..."}
-          disabled={isLoading}
+          disabled={isLoading || sessionExpired}
         />
         <button
           className="send-button"
           onClick={handleSendMessage}
-          disabled={isLoading || !inputMessage.trim()}
+          disabled={isLoading || !inputMessage.trim() || sessionExpired}
         >
           ➤
         </button>

@@ -295,4 +295,26 @@ body {
   .header h1 {
     font-size: 1.3rem;
   }
+}
+
+/* Session status indicators */
+.session-status {
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.session-active {
+  background-color: #e8f5e8;
+  color: #2d5a2d;
+  border: 1px solid #4caf50;
+}
+
+.session-expired {
+  background-color: #ffeaea;
+  color: #d32f2f;
+  border: 1px solid #f44336;
+  font-weight: bold;
 } 
