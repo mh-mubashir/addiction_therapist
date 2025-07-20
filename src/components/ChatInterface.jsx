@@ -1,116 +1,164 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { dbService } from '../services/supabase';
 import MessageBubble from './MessageBubble.jsx';
 import { 
   sendMessage, 
   formatMessages, 
-  createSession, 
-  getSessionStatus, 
-  clearSession 
+  analyzeMessageForTriggers
 } from '../services/claudeAPI.js';
-import { 
-  detectTriggersInMessage, 
-  getTriggerSummary, 
-  getCopingStrategies,
-  getNextQuestion,
-  evaluateResponse,
-  resetQuestionTracker
-} from '../services/triggerDetection.js';
+import { getCopingStrategies } from '../services/triggerDetection.js';
 
 const ChatInterface = () => {
+  const { user, patientProfile } = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [triggerAssessments, setTriggerAssessments] = useState([]);
-  const [currentQuestion, setCurrentQuestion] = useState(null);
-  const [questionMode, setQuestionMode] = useState(false);
-  const [sessionStatus, setSessionStatus] = useState(null);
-  const [sessionExpired, setSessionExpired] = useState(false);
+  const [currentSession, setCurrentSession] = useState(null);
+  const [sessionTriggers, setSessionTriggers] = useState([]);
   const messagesEndRef = useRef(null);
 
   // Initialize session on component mount
   useEffect(() => {
     const initializeSession = async () => {
+      console.log('🔄 Initializing session...');
+      console.log('📋 Dependencies:', { user: !!user, patientProfile: !!patientProfile });
+      
+      if (!user || !patientProfile) {
+        console.log('❌ Missing user or patient profile, skipping session init');
+        return;
+      }
+
       try {
-        await createSession();
-        console.log('✅ Session initialized');
+        console.log('🔍 Creating session for user:', user.id, 'profile:', patientProfile.id);
+        const session = await dbService.createSession(user.id, patientProfile.id);
+        setCurrentSession(session);
+        console.log('✅ Session initialized:', session.id);
       } catch (error) {
         console.error('❌ Failed to initialize session:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details
+        });
       }
     };
 
     initializeSession();
-  }, []);
+  }, [user, patientProfile]);
 
-  // Load conversation from localStorage on component mount
+  // Load conversation from database
   useEffect(() => {
-    const savedMessages = localStorage.getItem('therapist-chat');
-    const savedAssessments = localStorage.getItem('trigger-assessments');
-    
-    if (savedMessages) {
-      setMessages(JSON.parse(savedMessages));
-    } else {
-      // Add welcome message
-      setMessages([{
-        id: Date.now(),
-        sender: 'bot',
-        text: "Hello! I'm here to support you in your recovery journey. How are you feeling today? Remember, this is a safe space to share your thoughts and feelings."
-      }]);
-    }
-    
-    if (savedAssessments) {
-      setTriggerAssessments(JSON.parse(savedAssessments));
-    }
-    
-    // Reset question tracker for new sessions
-    resetQuestionTracker();
-  }, []);
+    const loadConversation = async () => {
+      if (!currentSession) return;
 
-  // Check session status periodically
-  useEffect(() => {
-    const checkSessionStatus = async () => {
       try {
-        const status = await getSessionStatus();
-        if (status) {
-          setSessionStatus(status);
-          if (status.isExpired) {
-            setSessionExpired(true);
-            console.log('⚠️ Session expired');
-          }
+        const sessionMessages = await dbService.getSessionMessages(currentSession.id);
+
+        if (sessionMessages.length === 0) {
+          // Add welcome message
+          const welcomeMessage = {
+            id: Date.now(),
+            sender: 'bot',
+            text: `Hello! I'm here to support you in your recovery journey. How are you feeling today? Remember, this is a safe space to share your thoughts and feelings.`
+          };
+          setMessages([welcomeMessage]);
+          
+          // Save welcome message to database
+          await dbService.saveMessage(currentSession.id, user.id, 'bot', welcomeMessage.text);
+        } else {
+          setMessages(sessionMessages.map(msg => ({
+            id: msg.id,
+            sender: msg.sender,
+            text: msg.content,
+            triggerInfo: msg.trigger_analysis
+          })));
         }
       } catch (error) {
-        console.error('Error checking session status:', error);
+        console.error('Error loading conversation:', error);
       }
     };
 
-    // Check every 5 minutes
-    const interval = setInterval(checkSessionStatus, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+    loadConversation();
+  }, [currentSession, user]);
 
-  // Save conversation to localStorage whenever messages change
+  // Save conversation to database whenever messages change
   useEffect(() => {
-    localStorage.setItem('therapist-chat', JSON.stringify(messages));
-  }, [messages]);
+    const saveMessages = async () => {
+      if (!currentSession || messages.length === 0) return;
 
-  // Save trigger assessments to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('trigger-assessments', JSON.stringify(triggerAssessments));
-  }, [triggerAssessments]);
+      try {
+        // Save only new messages that haven't been saved yet
+        const newMessages = messages.filter(msg => !msg.saved);
+        
+        for (const message of newMessages) {
+          await dbService.saveMessage(
+            currentSession.id,
+            user.id,
+            message.sender,
+            message.text,
+            message.triggerAnalysis
+          );
+          message.saved = true;
+        }
+      } catch (error) {
+        console.error('Error saving messages:', error);
+      }
+    };
+
+    saveMessages();
+  }, [messages, currentSession, user]);
 
   // Scroll to bottom when new messages are added
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Check if we should ask a trigger question
-  const shouldAskTriggerQuestion = () => {
-    // Ask trigger questions every 3-4 messages
-    const messageCount = messages.filter(m => m.sender === 'user').length;
-    return messageCount > 0 && messageCount % 3 === 0 && !questionMode;
-  };
-
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isLoading) return;
+    console.log('🔍 Send button clicked!');
+    console.log('📋 Current state:', {
+      inputMessage: inputMessage,
+      isLoading: isLoading,
+      currentSession: currentSession,
+      user: user?.id,
+      patientProfile: patientProfile?.id
+    });
+
+    if (!inputMessage.trim()) {
+      console.log('❌ No input message');
+      return;
+    }
+
+    if (isLoading) {
+      console.log('❌ Already loading');
+      return;
+    }
+
+    // Fallback mode if database is not set up
+    if (!currentSession) {
+      console.log('❌ No current session, trying to create one...');
+      try {
+        if (!user || !patientProfile) {
+          console.log('❌ Missing user or patient profile');
+          return;
+        }
+        
+        const newSession = await dbService.createSession(user.id, patientProfile.id);
+        setCurrentSession(newSession);
+        console.log('✅ Created new session:', newSession.id);
+      } catch (error) {
+        console.error('❌ Failed to create session:', error);
+        console.log('🔄 Using fallback mode (no database)');
+        
+        // Create a temporary session for fallback mode
+        const tempSession = {
+          id: 'temp-session-' + Date.now(),
+          user_id: user.id,
+          patient_profile_id: patientProfile.id
+        };
+        setCurrentSession(tempSession);
+      }
+    }
 
     const userMessage = {
       id: Date.now(),
@@ -118,7 +166,7 @@ const ChatInterface = () => {
       text: inputMessage.trim()
     };
 
-    // Add user message to chat
+    console.log('📤 Sending message:', userMessage.text);
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
@@ -127,42 +175,55 @@ const ChatInterface = () => {
       let botResponse = '';
       let detectedTriggers = [];
 
-      // If we're in question mode, evaluate the response to the current question
-      if (questionMode && currentQuestion) {
-        const evaluation = evaluateResponse(userMessage.text, currentQuestion);
-        
-        if (evaluation.triggered !== null) {
-          detectedTriggers.push(evaluation);
-          setTriggerAssessments(prev => [...prev, evaluation]);
-          
-          // Provide feedback based on the evaluation
-          if (evaluation.triggered) {
-            const copingStrategies = getCopingStrategies(evaluation.category);
-            botResponse = `I understand that ${evaluation.categoryName} situations can be challenging. Here are some strategies that might help:\n\n${copingStrategies.join('\n\n')}\n\nHow are you feeling about this?`;
-          } else {
-            botResponse = `That's great! It sounds like you're handling ${evaluation.categoryName} situations well. What other areas of your recovery would you like to discuss?`;
-          }
-        } else {
-          botResponse = "I'd like to understand better. Could you tell me more about how you feel in those situations?";
-        }
-        
-        setQuestionMode(false);
-        setCurrentQuestion(null);
-      } else {
-        // Regular conversation mode
-        const conversationHistory = [...messages, userMessage];
-        const formattedMessages = formatMessages(conversationHistory);
-        botResponse = await sendMessage(formattedMessages);
+      // Analyze message for triggers
+      console.log('🔍 Analyzing message for triggers...');
+      const triggerAnalysis = await analyzeMessageForTriggers(userMessage.text, messages);
+      userMessage.triggerAnalysis = triggerAnalysis;
 
-        // Check if we should ask a trigger question
-        if (shouldAskTriggerQuestion()) {
-          const nextQuestion = getNextQuestion();
-          if (nextQuestion) {
-            setCurrentQuestion(nextQuestion);
-            setQuestionMode(true);
-            botResponse += `\n\nI'd like to understand your triggers better. ${nextQuestion.question}`;
+      console.log('🔍 Trigger analysis result:', triggerAnalysis);
+
+      // Handle trigger detection results
+      if (triggerAnalysis.triggerDetected && triggerAnalysis.confidence !== 'low') {
+        detectedTriggers.push({
+          category: triggerAnalysis.triggerCategory,
+          categoryName: triggerAnalysis.triggerCategory,
+          intensity: triggerAnalysis.triggerIntensity,
+          confidence: triggerAnalysis.confidence,
+          reasoning: triggerAnalysis.reasoning
+        });
+
+        // Save trigger to database (only if not in fallback mode)
+        if (currentSession && !currentSession.id.startsWith('temp-session-')) {
+          console.log('💾 Saving trigger to database...');
+          try {
+            await dbService.saveTrigger(
+              user.id,
+              currentSession.id,
+              userMessage.id,
+              {
+                ...triggerAnalysis,
+                userMessage: userMessage.text,
+                botResponse: triggerAnalysis.supportMessage || ''
+              }
+            );
+          } catch (error) {
+            console.error('❌ Failed to save trigger:', error);
           }
         }
+
+        setSessionTriggers(prev => [...prev, triggerAnalysis]);
+      }
+
+      // Determine next action based on analysis
+      if (triggerAnalysis.nextAction === 'support' && triggerAnalysis.supportMessage) {
+        botResponse = triggerAnalysis.supportMessage;
+      } else if (triggerAnalysis.nextAction === 'question' && triggerAnalysis.suggestedQuestion) {
+        botResponse = triggerAnalysis.suggestedQuestion;
+      } else {
+        // Continue with regular conversation
+        console.log('💬 Getting bot response...');
+        const conversationHistory = [...messages, userMessage];
+        botResponse = await sendMessage(conversationHistory);
       }
 
       const botMessage = {
@@ -171,24 +232,47 @@ const ChatInterface = () => {
         text: botResponse
       };
 
-      // Add bot message to chat
+      console.log('📥 Bot response:', botResponse);
       setMessages(prev => [...prev, botMessage]);
 
-      // If triggers were detected and we're not in question mode, add coping strategies
-      if (detectedTriggers.length > 0 && !questionMode) {
+      // If triggers were detected, add coping strategies
+      if (detectedTriggers.length > 0) {
         const primaryTrigger = detectedTriggers[0];
-        const copingStrategies = getCopingStrategies(primaryTrigger.category);
-        const copingMessage = {
-          id: Date.now() + 2,
-          sender: 'bot',
-          text: `I notice you might be experiencing some triggers related to ${primaryTrigger.categoryName}. Here are some coping strategies that might help:\n\n${copingStrategies.join('\n\n')}`,
-          isCopingMessage: true
-        };
-        setMessages(prev => [...prev, copingMessage]);
+        
+        // Only provide coping strategies for medium and high risk triggers
+        if (primaryTrigger.intensity === 'medium' || primaryTrigger.intensity === 'high') {
+          const copingStrategies = getCopingStrategies(primaryTrigger.category);
+          const copingMessage = {
+            id: Date.now() + 2,
+            sender: 'bot',
+            text: `I notice you might be experiencing some ${primaryTrigger.intensity} risk triggers related to ${primaryTrigger.categoryName}. Here are some coping strategies that might help:\n\n${copingStrategies.join('\n\n')}`,
+            isCopingMessage: true,
+            triggerInfo: primaryTrigger
+          };
+          setMessages(prev => [...prev, copingMessage]);
+        }
+      }
+
+      // Update patient summary with new insights (only if not in fallback mode)
+      if (currentSession && !currentSession.id.startsWith('temp-session-')) {
+        console.log('📝 Updating patient summary...');
+        try {
+          await updatePatientSummary();
+        } catch (error) {
+          console.error('❌ Failed to update patient summary:', error);
+        }
+
+        // Update daily progress
+        console.log('📊 Updating daily progress...');
+        try {
+          await updateDailyProgress();
+        } catch (error) {
+          console.error('❌ Failed to update daily progress:', error);
+        }
       }
 
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('❌ Error sending message:', error);
       const errorMessage = {
         id: Date.now() + 1,
         sender: 'bot',
@@ -197,6 +281,45 @@ const ChatInterface = () => {
       setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
+      console.log('✅ Message handling complete');
+    }
+  };
+
+  const updatePatientSummary = async () => {
+    if (!user || !currentSession) return;
+
+    try {
+      // Generate summary from recent conversation
+      const recentMessages = messages.slice(-10); // Last 10 messages
+      const summaryPrompt = `Based on this recent conversation, provide a brief update to the patient's recovery summary. Focus on any new insights about their triggers, coping mechanisms, or progress.`;
+      
+      const summaryResponse = await sendMessage([
+        { sender: 'bot', text: summaryPrompt },
+        ...recentMessages
+      ]);
+
+      // Update patient profile
+      await dbService.updatePatientSummary(user.id, summaryResponse);
+      
+    } catch (error) {
+      console.error('Error updating patient summary:', error);
+    }
+  };
+
+  const updateDailyProgress = async () => {
+    if (!user) return;
+
+    try {
+      const progressData = {
+        conversations_count: 1,
+        triggers_detected: sessionTriggers.length,
+        high_risk_triggers: sessionTriggers.filter(t => t.triggerIntensity === 'high').length,
+        coping_strategies_used: sessionTriggers.filter(t => t.triggerIntensity === 'medium' || t.triggerIntensity === 'high').length
+      };
+
+      await dbService.updateDailyProgress(user.id, progressData);
+    } catch (error) {
+      console.error('Error updating daily progress:', error);
     }
   };
 
@@ -208,70 +331,76 @@ const ChatInterface = () => {
   };
 
   const clearConversation = async () => {
-    setMessages([{
-      id: Date.now(),
-      sender: 'bot',
-      text: "Hello! I'm here to support you in your recovery journey. How are you feeling today? Remember, this is a safe space to share your thoughts and feelings."
-    }]);
-    setTriggerAssessments([]);
-    setQuestionMode(false);
-    setCurrentQuestion(null);
-    setSessionExpired(false);
-    resetQuestionTracker();
-    
-    // Clear session and create new one
-    clearSession();
+    if (!currentSession) return;
+
     try {
-      await createSession();
+      // End current session
+      await dbService.endSession(currentSession.id, 'Session cleared by user');
+      
+      // Create new session
+      const newSession = await dbService.createSession(user.id, patientProfile.id);
+      setCurrentSession(newSession);
+      
+      // Reset messages
+      const welcomeMessage = {
+        id: Date.now(),
+        sender: 'bot',
+        text: `Hello! I'm here to support you in your recovery journey. How are you feeling today? Remember, this is a safe space to share your thoughts and feelings.`
+      };
+      setMessages([welcomeMessage]);
+      setSessionTriggers([]);
+      
+      // Save welcome message
+      await dbService.saveMessage(newSession.id, user.id, 'bot', welcomeMessage.text);
+      
     } catch (error) {
-      console.error('Error creating new session:', error);
+      console.error('Error clearing conversation:', error);
     }
-    
-    localStorage.removeItem('therapist-chat');
-    localStorage.removeItem('trigger-assessments');
   };
 
   const getTriggerSummaryForMessage = (messageId) => {
     // Show trigger summary every 5 messages or when coping strategies are provided
     const messageIndex = messages.findIndex(msg => msg.id === messageId);
     if (messageIndex > 0 && (messageIndex % 5 === 0 || messages[messageIndex]?.isCopingMessage)) {
-      return getTriggerSummary(triggerAssessments);
+      return sessionTriggers.map(trigger => ({
+        category: trigger.category,
+        categoryName: trigger.categoryName,
+        intensity: trigger.intensity,
+        confidence: trigger.confidence
+      }));
     }
     return null;
   };
 
   const getTriggerAlertForMessage = (message) => {
-    if (message.sender === 'user') {
-      const detectedTriggers = detectTriggersInMessage(message.text);
-      if (detectedTriggers.length > 0) {
-        const primaryTrigger = detectedTriggers[0];
-        const copingStrategies = getCopingStrategies(primaryTrigger.category);
-        return {
-          categoryName: primaryTrigger.categoryName,
-          copingStrategy: copingStrategies[0],
-          reasoning: primaryTrigger.reasoning
-        };
-      }
+    // This is now handled by the Claude analysis, but keep for backward compatibility
+    if (message.triggerInfo) {
+      return {
+        categoryName: message.triggerInfo.categoryName,
+        intensity: message.triggerInfo.intensity,
+        reasoning: message.triggerInfo.reasoning
+      };
     }
     return null;
   };
 
+  if (!user || !patientProfile) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <div className="chat-container">
-      {/* Session status indicator */}
-      {sessionStatus && (
-        <div className="session-status">
-          {sessionExpired ? (
-            <div className="session-expired">
-              ⚠️ Your session has expired. Please refresh the page or start a new conversation.
-            </div>
-          ) : (
-            <div className="session-active">
-              ⏰ Session active - {Math.round(sessionStatus.timeRemaining / 1000 / 60)} minutes remaining
-            </div>
+      <div className="chat-header">
+        <div className="user-info">
+          <h2>Recovery Support</h2>
+          <p>Welcome back! You're in {patientProfile.recovery_stage} recovery stage.</p>
+        </div>
+        <div className="session-info">
+          {currentSession && (
+            <span>Session: {currentSession.id.slice(0, 8)}...</span>
           )}
         </div>
-      )}
+      </div>
 
       <div className="messages">
         {messages.map((message) => (
@@ -288,7 +417,7 @@ const ChatInterface = () => {
             <div className="message-avatar">T</div>
             <div className="message-content">
               <div className="loading">
-                Thinking
+                Analyzing
                 <div className="loading-dots">
                   <span></span>
                   <span></span>
@@ -303,26 +432,25 @@ const ChatInterface = () => {
       </div>
 
       <div className="input-container">
-        <input
-          type="text"
-          className="input-field"
+        <textarea
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder={questionMode ? "Answer the question above..." : "Type your message here..."}
-          disabled={isLoading || sessionExpired}
+          placeholder="Share your thoughts and feelings..."
+          disabled={isLoading}
+          rows={1}
         />
-        <button
+        <button 
+          onClick={handleSendMessage} 
+          disabled={isLoading || !inputMessage.trim()}
           className="send-button"
-          onClick={handleSendMessage}
-          disabled={isLoading || !inputMessage.trim() || sessionExpired}
         >
-          ➤
+          Send
         </button>
       </div>
 
       <div className="controls">
-        <button className="control-button" onClick={clearConversation}>
+        <button onClick={clearConversation} className="clear-button">
           Clear Conversation
         </button>
       </div>

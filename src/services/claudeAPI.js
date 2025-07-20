@@ -24,11 +24,10 @@ Guidelines:
 
 Remember: Your primary goal is to be a supportive companion in their recovery journey, not a trigger detector. Only address potential triggers when they are clearly and specifically mentioned by the person.`;
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://addiction-therapist.vercel.app' 
-  : 'http://localhost:3001';
+// Use local proxy server to avoid CORS issues
+const API_BASE_URL = 'http://localhost:3001';
 
-// Session management
+// Session management (simplified - no local server needed)
 let currentSessionId = null;
 
 export async function createSession() {
@@ -46,10 +45,7 @@ export async function createSession() {
 
     const data = await response.json();
     currentSessionId = data.sessionId;
-    
-    // Store session ID in localStorage
     localStorage.setItem('therapist-session-id', currentSessionId);
-    
     return currentSessionId;
   } catch (error) {
     console.error('Error creating session:', error);
@@ -82,37 +78,26 @@ export async function sendMessage(messages) {
   try {
     // Ensure we have a session ID
     if (!currentSessionId) {
-      // Try to get from localStorage first
-      const savedSessionId = localStorage.getItem('therapist-session-id');
-      if (savedSessionId) {
-        // Check if session is still valid
-        try {
-          const status = await getSessionStatus(savedSessionId);
-          if (status && !status.isExpired) {
-            currentSessionId = savedSessionId;
-          } else {
-            // Session expired, create new one
-            await createSession();
-          }
-        } catch (error) {
-          // Session invalid, create new one
-          await createSession();
-        }
-      } else {
-        // No saved session, create new one
-        await createSession();
-      }
+      await createSession();
     }
+
+    // Format messages for Claude API
+    const formattedMessages = messages.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text || msg.content
+    }));
 
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ 
-        messages,
-        sessionId: currentSessionId 
-      }),
+      body: JSON.stringify({
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          ...formattedMessages
+        ]
+      })
     });
 
     if (!response.ok) {
@@ -128,10 +113,53 @@ export async function sendMessage(messages) {
   }
 }
 
+export async function analyzeMessageForTriggers(userMessage, conversationHistory = []) {
+  try {
+    // Ensure we have a session ID
+    if (!currentSessionId) {
+      await createSession();
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/analyze-triggers`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        userMessage,
+        conversationHistory: formatMessages(conversationHistory)
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to analyze triggers');
+    }
+
+    const data = await response.json();
+    
+    // Parse the JSON response from Claude
+    try {
+      const analysis = JSON.parse(data.analysis);
+      return {
+        ...analysis,
+        rawResponse: data.analysis // Keep original for debugging
+      };
+    } catch (parseError) {
+      console.error('Failed to parse Claude analysis:', data.analysis);
+      throw new Error('Invalid analysis response format');
+    }
+
+  } catch (error) {
+    console.error('Error analyzing triggers:', error);
+    throw error;
+  }
+}
+
 export function formatMessages(messages) {
   return messages.map(msg => ({
     role: msg.sender === 'user' ? 'user' : 'assistant',
-    content: msg.text
+    content: msg.text || msg.content
   }));
 }
 
