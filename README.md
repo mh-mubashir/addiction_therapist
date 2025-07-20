@@ -1,158 +1,227 @@
-# Addiction Recovery Therapist Chatbot
+# Recovery Support - AI-Powered Addiction Recovery Platform
 
-A compassionate AI-powered chatbot designed to provide therapeutic support for individuals recovering from drug addiction. The chatbot uses Claude's API to deliver empathetic conversations while detecting potential relapse triggers through natural dialogue.
+A comprehensive, multi-user addiction recovery support platform powered by Claude AI, featuring semantic trigger detection, patient analytics, and personalized recovery tracking.
 
-## Features
+## 🚀 Features
 
-- **Compassionate AI Therapy**: Powered by Claude 3.5 Sonnet for natural, empathetic conversations
-- **Trigger Detection**: Automatically identifies 6 categories of relapse triggers:
-  - Celebratory/Positive (success-based rewards)
-  - Environmental (location/situational triggers)
-  - Social (peer pressure, social dynamics)
-  - Emotional (stress, anxiety, depression)
-  - Cognitive (thought patterns, mental associations)
-  - Physiological (HALT states: Hungry, Angry, Lonely, Tired)
-- **Real-time Coping Strategies**: Provides personalized coping strategies when triggers are detected
-- **Session Tracking**: Maintains conversation history and trigger assessments in browser storage
-- **Modern UI**: Clean, responsive design optimized for both desktop and mobile
-- **Privacy-First**: All data stored locally in browser session
+### Phase 1: Database & Infrastructure
+- **Supabase Integration**: Multi-user database with Row Level Security
+- **Optimized Storage**: Free tier compatible with data truncation and retention policies
+- **Patient Profiles**: Comprehensive user profiles with recovery stage tracking
+- **Session Management**: Persistent conversation sessions with metadata
 
-## Quick Start
+### Phase 2: Authentication System
+- **User Registration**: Recovery-focused onboarding with addiction type and sobriety date
+- **Secure Login**: Supabase Auth with email/password authentication
+- **Profile Management**: Automatic patient profile creation and updates
+- **Session Persistence**: Maintains user state across browser sessions
 
-### Prerequisites
+### Phase 3: Enhanced Chat Interface
+- **Semantic Trigger Detection**: Claude AI-powered analysis of relapse risk
+- **Structured Responses**: JSON-based trigger analysis with confidence scoring
+- **Real-time Updates**: Live patient summary updates during conversations
+- **Coping Strategies**: Contextual support for medium/high risk triggers
+- **Database Integration**: Persistent message storage and session tracking
 
-- Node.js (version 16 or higher)
-- Claude API key from [Anthropic Console](https://console.anthropic.com/)
+### Phase 4: Patient Dashboard
+- **Trigger Analytics**: Visual breakdown of trigger categories and intensities
+- **Recovery Progress**: Weekly trends and daily activity tracking
+- **Conversation History**: Session summaries with risk level assessment
+- **Patient Summary**: AI-generated insights and recovery metrics
 
-### Installation
+### Phase 5: Navigation & App Structure
+- **Responsive Design**: Mobile-optimized interface with modern UI
+- **Protected Routes**: Authentication-based access control
+- **Navigation System**: Intuitive app navigation with user context
+- **Vercel Ready**: Optimized for deployment on Vercel platform
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd addiction_therapist
-   ```
+## 🛠️ Technology Stack
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+- **Frontend**: React 18 with Vite
+- **Backend**: Node.js/Express server
+- **Database**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **AI Integration**: Anthropic Claude API
+- **Styling**: CSS3 with responsive design
+- **Deployment**: Vercel-ready configuration
 
-3. **Set up your API key**
-   ```bash
-   cp env.example .env
-   ```
-   Then edit `.env` and add your Claude API key:
-   ```
-   VITE_CLAUDE_API_KEY=your-actual-api-key-here
-   ```
+## 📋 Prerequisites
 
-4. **Start the development server**
-   ```bash
-   npm run dev
-   ```
+- Node.js 18+ 
+- npm or yarn
+- Supabase account (free tier)
+- Anthropic Claude API key
 
-5. **Open your browser**
-   Navigate to `http://localhost:3000`
+## 🚀 Quick Start
 
-## Usage
+### 1. Clone and Install
 
-### Starting a Session
-- The chatbot will greet you with a warm welcome message
-- Simply type your thoughts, feelings, or concerns
-- The AI will respond with supportive, therapeutic dialogue
-
-### Trigger Detection
-- The system automatically analyzes your messages for potential triggers
-- When triggers are detected, you'll see:
-  - An alert with the trigger category
-  - Suggested coping strategies
-  - A session summary showing detected trigger patterns
-
-### Conversation Management
-- **Clear Conversation**: Use the "Clear Conversation" button to start fresh
-- **Session Persistence**: Your conversation history is automatically saved
-- **Mobile Friendly**: Works seamlessly on phones and tablets
-
-## Technical Architecture
-
-### Frontend
-- **React 18** with functional components and hooks
-- **Vite** for fast development and building
-- **CSS3** with modern styling and animations
-- **Local Storage** for session persistence
-
-### API Integration
-- **Direct Claude API** calls using Anthropic's latest model
-- **System Prompt** designed for addiction recovery therapy
-- **Error Handling** with graceful fallbacks
-
-### Trigger Detection
-- **Keyword Analysis** based on 6 trigger categories
-- **Confidence Scoring** for trigger assessments
-- **Coping Strategy Database** with category-specific recommendations
-
-## Project Structure
-
-```
-src/
-├── components/
-│   ├── ChatInterface.jsx    # Main chat component
-│   └── MessageBubble.jsx    # Individual message display
-├── services/
-│   ├── claudeAPI.js         # Claude API integration
-│   └── triggerDetection.js  # Trigger analysis logic
-├── data/
-│   └── triggerQuestions.js  # Trigger assessment framework
-├── App.jsx                  # Main application component
-├── main.jsx                 # React entry point
-└── index.css               # Global styles
-```
-
-## Configuration
-
-### Environment Variables
-- `VITE_CLAUDE_API_KEY`: Your Claude API key (required)
-
-### Customization
-- **Trigger Questions**: Modify `src/data/triggerQuestions.js` to adjust trigger detection
-- **Coping Strategies**: Update strategies in `src/services/triggerDetection.js`
-- **System Prompt**: Customize the therapeutic approach in `src/services/claudeAPI.js`
-
-## Safety & Privacy
-
-- **No Data Transmission**: All conversations stay in your browser
-- **Session-Based Storage**: Data is cleared when you close the browser
-- **No User Accounts**: No registration or personal data collection
-- **Local Processing**: Trigger detection happens entirely in your browser
-
-## Important Notes
-
-⚠️ **This is a therapeutic support tool, not a replacement for professional treatment**
-
-- Always consult with qualified healthcare professionals for addiction treatment
-- Use this tool as a supplement to professional therapy
-- If you're in crisis, contact emergency services or a crisis hotline
-- The chatbot is designed for ongoing recovery support, not emergency intervention
-
-## Development
-
-### Building for Production
 ```bash
-npm run build
+git clone <repository-url>
+cd addiction_therapist
+npm install
 ```
 
-### Preview Production Build
+### 2. Environment Setup
+
+Copy the environment template and configure your variables:
+
 ```bash
-npm run preview
+cp env.example .env
 ```
 
-### Code Style
-- Follow React best practices
-- Use functional components with hooks
-- Maintain consistent error handling
-- Add comments for complex logic
+Edit `.env` with your credentials:
 
-## Contributing
+```env
+# Claude API Configuration
+VITE_CLAUDE_API_KEY=your_claude_api_key_here
+
+# Supabase Configuration
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Server Configuration (for development)
+PORT=3001
+```
+
+### 3. Database Setup
+
+1. Create a new Supabase project at [supabase.com](https://supabase.com)
+2. Go to SQL Editor in your Supabase dashboard
+3. Copy and run the contents of `supabase-schema.sql`
+4. Note your project URL and anon key for the environment variables
+
+### 4. Start Development Server
+
+```bash
+# Terminal 1: Start the backend server
+npm run server
+
+# Terminal 2: Start the frontend development server
+npm run dev
+```
+
+The application will be available at `http://localhost:5173`
+
+## 🗄️ Database Schema
+
+The application uses 5 main tables:
+
+### `patient_profiles`
+- User recovery information and preferences
+- Live-updated patient summaries
+- Recovery stage and metrics tracking
+
+### `conversation_sessions`
+- Chat session metadata and summaries
+- Duration, message count, and risk assessment
+- Primary concerns and session status
+
+### `messages`
+- Individual chat messages with trigger analysis
+- Structured JSON responses from Claude AI
+- Optimized storage for free tier limits
+
+### `trigger_history`
+- Detailed trigger detection records
+- Context and coping strategy tracking
+- Resolution and follow-up data
+
+### `recovery_progress`
+- Daily aggregated recovery metrics
+- Mood and confidence tracking
+- Weekly trend analysis
+
+## 🔧 Configuration
+
+### Supabase Free Tier Optimization
+
+The application is optimized for Supabase's free tier limits:
+
+- **500MB Database Storage**: Supports ~2,000 users
+- **2GB Bandwidth/month**: Handles ~10,000 users
+- **50,000 Monthly Active Users**: More than sufficient
+- **0 Real-time Connections**: Uses polling instead of subscriptions
+
+### Data Retention Policies
+
+- Messages: 30-day retention for detailed conversations
+- Triggers: 30-day retention for analysis data
+- Progress: Unlimited retention for aggregated metrics
+- Profiles: Unlimited retention for user data
+
+## 🚀 Deployment
+
+### Vercel Deployment
+
+1. **Connect Repository**: Link your GitHub repository to Vercel
+2. **Environment Variables**: Add all environment variables in Vercel dashboard
+3. **Build Settings**: 
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+4. **Deploy**: Vercel will automatically deploy on push to main branch
+
+### Environment Variables for Production
+
+```env
+VITE_CLAUDE_API_KEY=your_production_claude_key
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+## 📊 Usage Guide
+
+### For Users
+
+1. **Registration**: Create account with recovery information
+2. **Chat Interface**: Start conversations with AI therapist
+3. **Dashboard**: Monitor progress and trigger patterns
+4. **Profile Management**: Update preferences and recovery stage
+
+### For Administrators
+
+1. **Database Monitoring**: Check Supabase dashboard for usage
+2. **User Management**: Monitor user activity and engagement
+3. **Analytics**: Review trigger patterns and recovery trends
+4. **Scaling**: Upgrade Supabase plan as needed
+
+## 🔒 Security Features
+
+- **Row Level Security**: Users can only access their own data
+- **Authentication**: Secure Supabase Auth integration
+- **Input Validation**: Client and server-side validation
+- **Data Encryption**: Supabase handles data encryption
+- **Session Management**: Secure session handling
+
+## 📈 Scaling Considerations
+
+### Free Tier Limits
+- **Database**: 500MB (supports ~2,000 users)
+- **Bandwidth**: 2GB/month (supports ~10,000 users)
+- **Users**: 50,000 monthly active users
+
+### Upgrade Path
+1. **Supabase Pro**: $25/month for 8GB storage, 250GB bandwidth
+2. **Supabase Team**: $599/month for enterprise features
+3. **Custom Infrastructure**: Self-hosted PostgreSQL option
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+1. **Environment Variables**: Ensure all variables are set correctly
+2. **Database Connection**: Verify Supabase URL and keys
+3. **API Limits**: Check Claude API usage and limits
+4. **Build Errors**: Ensure Node.js version compatibility
+
+### Support
+
+- Check Supabase documentation for database issues
+- Review Anthropic API documentation for Claude integration
+- Monitor Vercel deployment logs for build issues
+
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -160,90 +229,17 @@ npm run preview
 4. Test thoroughly
 5. Submit a pull request
 
-## License
+## 📄 License
 
-This project is for educational and therapeutic support purposes. Please ensure compliance with local regulations regarding AI-powered health applications.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Support
+## 🙏 Acknowledgments
 
-For technical issues or questions about the implementation, please open an issue in the repository.
+- **Anthropic**: Claude AI API for semantic analysis
+- **Supabase**: Database and authentication infrastructure
+- **Vercel**: Deployment and hosting platform
+- **React**: Frontend framework and ecosystem
 
 ---
 
-**Remember**: Recovery is a journey, and you don't have to walk it alone. This tool is here to support you, but always reach out to professionals when you need additional help.
-
-## Session Management
-
-The system now supports multiple users with automatic session management:
-
-- **30-minute session timeout** for inactivity
-- **Automatic session cleanup** every 5 minutes
-- **Session persistence** across page refreshes
-- **Multi-device support** with unique session IDs
-
-## Deployment to Vercel
-
-### 1. Prepare for Deployment
-
-1. **Update API URL** in `src/services/claudeAPI.js`:
-   ```javascript
-   const API_BASE_URL = process.env.NODE_ENV === 'production' 
-     ? 'https://addiction-therapist.vercel.app'  // Replace with your Vercel URL
-     : 'http://localhost:3001';
-   ```
-
-2. **Set environment variables** in Vercel:
-   - Go to your Vercel project dashboard
-   - Navigate to Settings → Environment Variables
-   - Add: `CLAUDE_API_KEY` = your Claude API key
-
-### 2. Deploy
-
-1. **Install Vercel CLI** (optional):
-   ```bash
-   npm i -g vercel
-   ```
-
-2. **Deploy via GitHub** (recommended):
-   - Push your code to GitHub
-   - Connect your repository to Vercel
-   - Vercel will automatically deploy on pushes
-
-3. **Deploy via CLI**:
-   ```bash
-   vercel
-   ```
-
-### 3. Configuration
-
-The `vercel.json` file is already configured to:
-- Route API calls to the Node.js server
-- Serve the React app for all other routes
-- Handle both frontend and backend in one deployment
-
-## API Endpoints
-
-### Session Management
-- `POST /api/session/create` - Create new session
-- `GET /api/session/:sessionId/status` - Get session status
-- `DELETE /api/session/:sessionId` - Delete session
-
-### Chat
-- `POST /api/chat` - Send message to Claude AI
-
-### Health Check
-- `GET /health` - Server health and status
-
-## Session Timeout Behavior
-
-- **30-minute timeout** for inactive sessions
-- **Automatic cleanup** of expired sessions
-- **Session status indicators** in the UI
-- **Graceful handling** of expired sessions
-
-## Security Considerations
-
-- API keys are stored server-side only
-- Sessions are stored in memory (not persistent)
-- No sensitive data is logged
-- CORS is configured for security
+**Note**: This application is designed for addiction recovery support and should be used in conjunction with professional medical care. It is not a replacement for professional treatment.
