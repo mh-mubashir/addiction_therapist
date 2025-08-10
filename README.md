@@ -10,6 +10,8 @@ A comprehensive, multi-user addiction recovery support platform powered by Claud
 - **Patient Profiles**: Comprehensive user profiles with recovery stage tracking
 - **Session Management**: Persistent conversation sessions with metadata
 
+
+
 ### Phase 2: Authentication System
 - **User Registration**: Recovery-focused onboarding with addiction type and sobriety date
 - **Secure Login**: Supabase Auth with email/password authentication
