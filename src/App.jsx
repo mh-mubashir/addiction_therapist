@@ -47,6 +47,9 @@ const ProtectedRoute = ({ children }) => {
 // Main app content
 const AppContent = () => {
   const { user, signOut } = useAuth();
+  
+  // Debug flag - set to false to hide debug info
+  const SHOW_DEBUG = false;
 
   const handleAuthSuccess = (user) => {
     console.log('✅ User authenticated:', user.email);
@@ -59,8 +62,8 @@ const AppContent = () => {
   return (
     <Router>
       <div className="app">
-        {/* Debug component - remove in production */}
-        <DebugInfo />
+        {/* Debug component - controlled by SHOW_DEBUG flag */}
+        {SHOW_DEBUG && <DebugInfo />}
         
         {user ? (
           <>
