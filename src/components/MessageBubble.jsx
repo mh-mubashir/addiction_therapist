@@ -3,6 +3,8 @@ import React from 'react';
 const MessageBubble = ({ message, triggerAlert, triggerSummary }) => {
   const isBot = message.sender === 'bot';
   const isCopingMessage = message.isCopingMessage;
+  const isFallback = message.isFallback;
+  const isEmergency = message.isEmergency;
 
   const getIntensityColor = (intensity) => {
     switch (intensity) {
@@ -35,7 +37,7 @@ const MessageBubble = ({ message, triggerAlert, triggerSummary }) => {
   };
 
   return (
-    <div className={`message ${isBot ? 'bot' : 'user'}`}>
+    <div className={`message ${isBot ? 'bot' : 'user'} ${isFallback ? 'fallback' : ''} ${isEmergency ? 'emergency' : ''}`}>
       <div className="message-avatar">
         {isBot ? 'T' : 'U'}
       </div>
@@ -78,6 +80,20 @@ const MessageBubble = ({ message, triggerAlert, triggerSummary }) => {
         {isCopingMessage && (
           <div className="coping-indicator">
             💡 Coping strategies provided
+          </div>
+        )}
+
+        {/* Fallback Message Indicator */}
+        {isFallback && (
+          <div className="fallback-indicator">
+            ⚠️ Backup response (AI temporarily unavailable)
+          </div>
+        )}
+
+        {/* Emergency Message Indicator */}
+        {isEmergency && (
+          <div className="emergency-indicator">
+            🚨 Emergency resources provided
           </div>
         )}
       </div>

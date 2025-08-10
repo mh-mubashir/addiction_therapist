@@ -8,6 +8,12 @@ import {
   analyzeMessageForTriggers
 } from '../services/claudeAPI.js';
 import { getCopingStrategies } from '../services/triggerDetection.js';
+import { 
+  getFallbackResponse, 
+  needsImmediateAttention, 
+  getEmergencyResources 
+} from '../services/fallbackService.js';
+import VoiceInterface from './VoiceInterface.jsx';
 
 const ChatInterface = () => {
   const { user, patientProfile } = useAuth();
@@ -16,6 +22,9 @@ const ChatInterface = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentSession, setCurrentSession] = useState(null);
   const [sessionTriggers, setSessionTriggers] = useState([]);
+  const [apiStatus, setApiStatus] = useState('available'); // 'available', 'unavailable', 'degraded'
+  const [fallbackMode, setFallbackMode] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Initialize session on component mount
@@ -273,12 +282,51 @@ const ChatInterface = () => {
 
     } catch (error) {
       console.error('❌ Error sending message:', error);
-      const errorMessage = {
-        id: Date.now() + 1,
-        sender: 'bot',
-        text: "I'm sorry, I'm having trouble responding right now. Please try again in a moment."
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      
+      // Check if it's an API-related error
+      const isAPIError = error.message.includes('API') || 
+                        error.message.includes('Claude') || 
+                        error.message.includes('network') ||
+                        error.message.includes('fetch');
+      
+      if (isAPIError) {
+        // Switch to fallback mode
+        setApiStatus('unavailable');
+        setFallbackMode(true);
+        
+        // Get fallback response
+        const fallbackResponse = getFallbackResponse(userMessage.text);
+        
+        const fallbackMessage = {
+          id: Date.now() + 1,
+          sender: 'bot',
+          text: fallbackResponse.text,
+          isFallback: true,
+          priority: fallbackResponse.priority
+        };
+        
+        setMessages(prev => [...prev, fallbackMessage]);
+        
+        // Show emergency resources for high priority messages
+        if (fallbackResponse.priority === 'high') {
+          const emergencyResources = getEmergencyResources();
+          const emergencyMessage = {
+            id: Date.now() + 2,
+            sender: 'bot',
+            text: `If you need immediate help, please contact:\n\n${emergencyResources.hotlines.map(h => `• ${h.name}: ${h.number || h.text}`).join('\n')}`,
+            isEmergency: true
+          };
+          setMessages(prev => [...prev, emergencyMessage]);
+        }
+      } else {
+        // Non-API error, show generic error message
+        const errorMessage = {
+          id: Date.now() + 1,
+          sender: 'bot',
+          text: "I'm sorry, I'm having trouble responding right now. Please try again in a moment."
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
     } finally {
       setIsLoading(false);
       console.log('✅ Message handling complete');
@@ -384,6 +432,80 @@ const ChatInterface = () => {
     return null;
   };
 
+  // Handle voice messages
+  const handleVoiceMessage = async (message) => {
+    // Add user message to chat
+    const userMessage = {
+      id: Date.now(),
+      sender: 'user',
+      text: message
+    };
+    
+    setMessages(prev => [...prev, userMessage]);
+    
+    try {
+      // Process message same as text input
+      let botResponse = '';
+      let detectedTriggers = [];
+
+      // Analyze message for triggers
+      const triggerAnalysis = await analyzeMessageForTriggers(userMessage.text, messages);
+      userMessage.triggerAnalysis = triggerAnalysis;
+
+      if (triggerAnalysis.triggerDetected && triggerAnalysis.confidence !== 'low') {
+        detectedTriggers.push({
+          category: triggerAnalysis.triggerCategory,
+          categoryName: triggerAnalysis.triggerCategory,
+          intensity: triggerAnalysis.triggerIntensity,
+          confidence: triggerAnalysis.confidence,
+          reasoning: triggerAnalysis.reasoning
+        });
+      }
+
+      // Get AI response
+      if (triggerAnalysis.nextAction === 'support' && triggerAnalysis.supportMessage) {
+        botResponse = triggerAnalysis.supportMessage;
+      } else if (triggerAnalysis.nextAction === 'question' && triggerAnalysis.suggestedQuestion) {
+        botResponse = triggerAnalysis.suggestedQuestion;
+      } else {
+        const conversationHistory = [...messages, userMessage];
+        botResponse = await sendMessage(conversationHistory);
+      }
+
+      const botMessage = {
+        id: Date.now() + 1,
+        sender: 'bot',
+        text: botResponse
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+      
+      // Return response for voice synthesis
+      return botResponse;
+      
+    } catch (error) {
+      console.error('Error processing voice message:', error);
+      
+      // Use fallback response
+      const fallbackResponse = getFallbackResponse(message);
+      const fallbackMessage = {
+        id: Date.now() + 1,
+        sender: 'bot',
+        text: fallbackResponse.text,
+        isFallback: true,
+        priority: fallbackResponse.priority
+      };
+      
+      setMessages(prev => [...prev, fallbackMessage]);
+      return fallbackResponse.text;
+    }
+  };
+
+  const handleVoiceError = (error) => {
+    console.error('Voice interface error:', error);
+    // Could show a toast notification here
+  };
+
   if (!user || !patientProfile) {
     return <div>Loading...</div>;
   }
@@ -394,11 +516,23 @@ const ChatInterface = () => {
         <div className="user-info">
           <h2>Recovery Support</h2>
           <p>Welcome back! You're in {patientProfile.recovery_stage} recovery stage.</p>
+          {fallbackMode && (
+            <div className="fallback-notice">
+              <span className="fallback-icon">⚠️</span>
+              <span>Limited Mode: Using backup responses while AI is unavailable</span>
+            </div>
+          )}
         </div>
         <div className="session-info">
           {currentSession && (
             <span>Session: {currentSession.id.slice(0, 8)}...</span>
           )}
+          <div className="api-status">
+            <span className={`status-indicator ${apiStatus}`}>
+              {apiStatus === 'available' ? '🟢' : apiStatus === 'degraded' ? '🟡' : '🔴'} 
+              {apiStatus === 'available' ? 'AI Available' : apiStatus === 'degraded' ? 'Limited Mode' : 'Fallback Mode'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -449,11 +583,41 @@ const ChatInterface = () => {
         </button>
       </div>
 
+      {/* AI Disclaimer */}
+      <div className="ai-disclaimer">
+        <div className="disclaimer-icon">🤖</div>
+        <div className="disclaimer-content">
+          <div className="disclaimer-title">AI Assistant Notice</div>
+          <div className="disclaimer-text">
+            Your AI therapist is here to support you, but it's not a replacement for professional medical care. 
+            While it strives to be helpful, it may make mistakes or provide incomplete information. 
+            Always consult with qualified healthcare professionals for medical advice.
+          </div>
+        </div>
+      </div>
+
       <div className="controls">
         <button onClick={clearConversation} className="clear-button">
           Clear Conversation
         </button>
+        <button 
+          onClick={() => setVoiceMode(!voiceMode)} 
+          className={`voice-toggle-button ${voiceMode ? 'active' : ''}`}
+        >
+          {voiceMode ? '🎤 Voice Mode' : '🎧 Text Mode'}
+        </button>
       </div>
+
+      {/* Voice Interface */}
+      {voiceMode && (
+        <div className="voice-interface-container">
+          <VoiceInterface 
+            onMessage={handleVoiceMessage}
+            onError={handleVoiceError}
+            isAIAvailable={apiStatus === 'available'}
+          />
+        </div>
+      )}
     </div>
   );
 };
