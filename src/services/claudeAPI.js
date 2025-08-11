@@ -24,8 +24,8 @@ Guidelines:
 
 Remember: Your primary goal is to be a supportive companion in their recovery journey, not a trigger detector. Only address potential triggers when they are clearly and specifically mentioned by the person.`;
 
-// Use local proxy server to avoid CORS issues
-const API_BASE_URL = 'http://localhost:3001';
+// Use relative URLs for both local development and Vercel production
+const API_BASE_URL = '';
 
 // Session management (simplified - no local server needed)
 let currentSessionId = null;

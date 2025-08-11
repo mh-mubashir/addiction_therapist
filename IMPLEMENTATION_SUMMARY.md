@@ -26,6 +26,12 @@ Frontend (Port 3000) → Vite Proxy → Backend (Port 3001)
 Frontend → Vercel API Routes (same domain)
 ```
 
+### **Key Point:**
+- **Frontend code always uses relative URLs** (`/api/*`)
+- **Vite proxy handles local development** (routes to localhost:3001)
+- **Vercel automatically routes** `/api/*` to your serverless functions
+- **No code changes needed** between local and production!
+
 ## 📋 **Available Commands:**
 
 ### **Single Command (Recommended):**
