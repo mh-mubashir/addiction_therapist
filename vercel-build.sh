@@ -1,14 +1,23 @@
 #!/bin/bash
 
-# Build the React app
-echo "🔨 Building React app..."
+echo "🚀 Starting Vercel build..."
+
+# Install dependencies
+echo "📦 Installing dependencies..."
+npm install
+
+# Build the frontend
+echo "🔨 Building frontend..."
 npm run build
 
-# Check if build was successful
-if [ -d "dist" ]; then
-    echo "✅ Build successful - dist folder created"
-    ls -la dist/
-else
-    echo "❌ Build failed - dist folder not found"
+# Verify API routes exist
+echo "🔍 Verifying API routes..."
+if [ ! -d "api" ]; then
+    echo "❌ API directory not found!"
     exit 1
-fi 
+fi
+
+echo "✅ API routes found:"
+ls -la api/
+
+echo "🎉 Build completed successfully!" 

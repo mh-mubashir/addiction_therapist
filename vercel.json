@@ -1,15 +1,45 @@
 {
   "version": 2,
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
   "builds": [
     {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "dist"
+        "distDir": "dist",
+        "buildCommand": "npm run vercel-build"
       }
     }
   ],
   "routes": [
+    {
+      "src": "/api/test",
+      "dest": "/api/test.js"
+    },
+    {
+      "src": "/api/session/create",
+      "dest": "/api/session/create.js"
+    },
+    {
+      "src": "/api/chat",
+      "dest": "/api/chat.js"
+    },
+    {
+      "src": "/api/analyze-triggers",
+      "dest": "/api/analyze-triggers.js"
+    },
+    {
+      "src": "/api/health",
+      "dest": "/api/health.js"
+    },
+    {
+      "src": "/api/session/(.*)/status",
+      "dest": "/api/session/[sessionId]/status.js"
+    },
     {
       "src": "/api/(.*)",
       "dest": "/api/$1"

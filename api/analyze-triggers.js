@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -18,6 +16,7 @@ export default async function handler(req, res) {
 
   try {
     const { userMessage, conversationHistory } = req.body;
+    console.log('Analyze triggers endpoint called');
     
     const analysisPrompt = `You are a specialized relapse risk assessment system for addiction recovery. Analyze the user's message for behaviors, situations, or thought patterns that indicate movement toward relapse and provide a structured response.
 
@@ -73,7 +72,7 @@ Return ONLY a valid JSON object with this exact structure:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.VITE_CLAUDE_API_KEY,
+        'x-api-key': process.env.CLAUDE_API_KEY,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
@@ -88,10 +87,12 @@ Return ONLY a valid JSON object with this exact structure:
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('Claude API error:', errorData);
       return res.status(response.status).json({ error: errorData.error?.message || 'Claude API error' });
     }
 
     const data = await response.json();
+    console.log('Trigger analysis response received');
     res.json({ analysis: data.content[0].text });
   } catch (error) {
     console.error('API error:', error);

@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.js",
-    "vercel-build": "npm run build"
+    "vercel-build": "bash vercel-build.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.0",
@@ -20,7 +20,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.21.2",
-    "node-fetch": "^2.7.0",
+
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.8.0",

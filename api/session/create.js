@@ -15,10 +15,24 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Session creation endpoint called');
+    console.log('Request body:', req.body);
+    console.log('Environment:', process.env.NODE_ENV);
+    
     const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    res.json({ sessionId });
+    console.log('Created session:', sessionId);
+    
+    res.status(200).json({ 
+      sessionId,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'unknown'
+    });
   } catch (error) {
     console.error('API error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 } 
