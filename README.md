@@ -72,6 +72,9 @@ Copy the environment template and configure your variables:
 cp env.example .env
 ```
 
+
+
+
 Edit `.env` with your credentials:
 
 ```env
