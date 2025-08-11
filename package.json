@@ -10,7 +10,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "server": "node server.js",
-    "vercel-build": "bash vercel-build.sh"
+
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.55.0",
